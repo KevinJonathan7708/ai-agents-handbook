@@ -10,7 +10,8 @@ from .models import Entry
 def month_range(year: int, month: int) -> tuple[date, date]:
     """First and last calendar day of a month."""
     first = date(year, month, 1)
-    last = date(year, month + 1, 1) - timedelta(days=1)
+    next_year, next_month = (year + 1, 1) if month == 12 else (year, month + 1)
+    last = date(next_year, next_month, 1) - timedelta(days=1)
     return first, last
 
 
