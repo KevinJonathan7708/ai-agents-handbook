@@ -3,27 +3,31 @@ from __future__ import annotations
 import argparse
 import sys
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from . import report, store
+from . import budget, report, store
 from .models import Entry
 
 DEFAULT_LEDGER = Path("ledger.json")
 
 
 def cmd_add(args: argparse.Namespace) -> int:
-    entries = store.load(args.ledger)
+    entries, budgets = store.load(args.ledger)
     day = date.fromisoformat(args.day)
     entry = Entry(day=day, category=args.category, amount=Decimal(args.amount))
     entries.append(entry)
-    store.save(args.ledger, entries)
+    store.save(args.ledger, entries, budgets)
     print(f"added {args.category} {args.amount} on {args.day}")
+    warning = budget.check_over_budget(budgets, entries, args.category, day.year, day.month)
+    if warning:
+        print(warning, file=sys.stderr)
     return 0
 
 
 def cmd_list(args: argparse.Namespace) -> int:
-    entries = sorted(store.load(args.ledger), key=lambda e: e.day)
+    entries, _budgets = store.load(args.ledger)
+    entries = sorted(entries, key=lambda e: e.day)
     if args.last:
         entries = entries[-args.last :]
     for e in entries:
@@ -32,9 +36,36 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
-    entries = store.load(args.ledger)
+    entries, _budgets = store.load(args.ledger)
     month_entries = report.entries_in_month(entries, args.year, args.month)
     print(report.format_report(args.year, args.month, report.totals_by_category(month_entries)))
+    return 0
+
+
+def cmd_budget_set(args: argparse.Namespace) -> int:
+    try:
+        amount = Decimal(args.amount)
+    except InvalidOperation:
+        print("Error: amount must be a positive number", file=sys.stderr)
+        return 1
+    if amount <= 0:
+        print("Error: amount must be a positive number", file=sys.stderr)
+        return 1
+    budget.set_budget(args.ledger, args.category, amount)
+    print(f"budget {args.category} set to {amount}")
+    return 0
+
+
+def cmd_budget_status(args: argparse.Namespace) -> int:
+    entries, budgets = store.load(args.ledger)
+    spent = budget.month_spent(entries, args.year, args.month)
+    rows = budget.status_rows(budgets, spent)
+    for row in rows:
+        b = str(row["budget"]) if row["budget"] is not None else "\u2014"
+        r = str(row["remaining"]) if row["remaining"] is not None else "\u2014"
+        print(
+            f"{row['category']}  budget: {b}  spent: {row['spent']}  remaining: {r}"
+        )
     return 0
 
 
@@ -59,6 +90,20 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--year", type=int, required=True)
     r.add_argument("--month", type=int, required=True)
     r.set_defaults(func=cmd_report)
+
+    bud = sub.add_parser("budget", help="manage category budgets")
+    bud_sub = bud.add_subparsers(dest="budget_command", required=True)
+
+    bs = bud_sub.add_parser("set", help="set a monthly budget for a category")
+    bs.add_argument("category")
+    bs.add_argument("amount")
+    bs.set_defaults(func=cmd_budget_set)
+
+    bst = bud_sub.add_parser("status", help="show budget vs spend for a month")
+    bst.add_argument("--year", type=int, required=True)
+    bst.add_argument("--month", type=int, required=True)
+    bst.set_defaults(func=cmd_budget_status)
+
     return p
 
 
