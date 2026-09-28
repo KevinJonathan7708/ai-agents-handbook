@@ -1,8 +1,6 @@
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from ledgerlite import budget
 from ledgerlite.models import Entry
 
