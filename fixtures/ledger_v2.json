@@ -1,0 +1,17 @@
+{
+  "schema_version": 2,
+  "entries": [
+    {
+      "day": "2026-09-01",
+      "category": "food",
+      "amount": "450",
+      "currency": "INR"
+    },
+    {
+      "day": "2026-09-03",
+      "category": "transport",
+      "amount": "120.50",
+      "currency": "INR"
+    }
+  ]
+}
