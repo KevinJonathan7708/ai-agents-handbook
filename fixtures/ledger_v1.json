@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "day": "2026-01-05",
+      "category": "rent",
+      "amount": "15000"
+    },
+    {
+      "day": "2026-01-06",
+      "category": "food",
+      "amount": "250.25"
+    }
+  ]
+}
